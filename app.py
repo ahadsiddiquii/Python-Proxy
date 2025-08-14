@@ -11,22 +11,32 @@ def proxy():
         return "Missing 'url' parameter", 400
 
     try:
+        # Add headers to mimic a real browser
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": url
+        }
+
         # Fetch the content from the target URL
-        resp = requests.get(url)
-        headers = dict(resp.headers)
+        resp = requests.get(url, headers=headers, stream=True, timeout=10)
 
-        # Remove headers that may break CORS or cause issues
-        headers.pop('Content-Encoding', None)
-        headers.pop('Content-Length', None)
-        headers.pop('Transfer-Encoding', None)
+        # Copy headers but remove those that could break things
+        response_headers = {k: v for k, v in resp.headers.items() 
+                            if k.lower() not in ["content-encoding", "content-length", "transfer-encoding", "connection"]}
 
-        # Add CORS headers so browser allows access
-        headers['Access-Control-Allow-Origin'] = '*'
-        headers['X-Proxy-By'] = 'MyPythonProxy'
+        # Add CORS and custom headers
+        response_headers['Access-Control-Allow-Origin'] = '*'
+        response_headers['X-Proxy-By'] = 'MyPythonProxy'
 
-        return Response(resp.content, headers=headers, status=resp.status_code)
-    except Exception as e:
+        return Response(resp.raw, headers=response_headers, status=resp.status_code)
+    except requests.exceptions.RequestException as e:
         return f"Error fetching URL: {str(e)}", 500
+    except Exception as e:
+        return f"Unexpected error: {str(e)}", 500
 
 # Only used for local testing
 if __name__ == "__main__":
