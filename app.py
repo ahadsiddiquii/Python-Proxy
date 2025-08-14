@@ -1,5 +1,6 @@
 from flask import Flask, request, Response
 import requests
+import os
 
 app = Flask(__name__)
 
@@ -13,9 +14,11 @@ def proxy():
         # Fetch the content from the target URL
         resp = requests.get(url)
         headers = dict(resp.headers)
-        # Remove headers that may break CORS
+
+        # Remove headers that may break CORS or cause issues
         headers.pop('Content-Encoding', None)
         headers.pop('Content-Length', None)
+        headers.pop('Transfer-Encoding', None)
 
         # Add CORS headers so browser allows access
         headers['Access-Control-Allow-Origin'] = '*'
@@ -25,5 +28,7 @@ def proxy():
     except Exception as e:
         return f"Error fetching URL: {str(e)}", 500
 
+# Only used for local testing
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
